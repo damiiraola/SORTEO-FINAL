@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sorteo LUXOTIME - Día del Niño</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #111111;
+        }
+        .font-fancy {
+            font-family: 'Cormorant Garamond', serif;
+        }
+        .confetti {
+            position: absolute;
+            width: 8px;
+            height: 15px;
+            opacity: 0.9;
+            animation: fall 4s linear forwards;
+        }
+        @keyframes fall {
+            to {
+                transform: translateY(100vh) rotate(720deg);
+                opacity: 0;
+            }
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        /* New animation to make winners pulse/glow */
+        @keyframes highlight-winner {
+            0% { text-shadow: 0 0 5px rgba(234, 179, 8, 0.2); transform: scale(1); }
+            50% { text-shadow: 0 0 25px rgba(234, 179, 8, 1), 0 0 40px rgba(234, 179, 8, 0.5); transform: scale(1.03); }
+            100% { text-shadow: 0 0 5px rgba(234, 179, 8, 0.2); transform: scale(1); }
+        }
+        .winner-item {
+            /* Chain two animations: fade in first, then start the highlight pulse after a delay */
+            animation: fadeIn 0.5s ease-out forwards, highlight-winner 2.5s ease-in-out 1s infinite;
+            opacity: 0;
+        }
+        @keyframes reveal-glow {
+            0%, 100% { text-shadow: 0 0 15px rgba(234, 179, 8, 0.2); }
+            50% { text-shadow: 0 0 30px rgba(234, 179, 8, 0.9); }
+        }
+        .reveal-title {
+            animation: reveal-glow 1.5s ease-in-out;
+        }
+        .participant-list::-webkit-scrollbar { width: 8px; }
+        .participant-list::-webkit-scrollbar-track { background: #111111; border-radius: 10px; }
+        .participant-list::-webkit-scrollbar-thumb { background: #8A8A8A; border-radius: 10px; }
+        .participant-list::-webkit-scrollbar-thumb:hover { background: #a1a1a1; }
+        @keyframes countdown-pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.2); opacity: 0.8; }
+        }
+        .countdown-number {
+            animation: countdown-pulse 1s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+    <div id="app-container" class="w-full max-w-4xl mx-auto p-8 md:p-10 bg-[#333333] rounded-xl border border-gray-700/50 shadow-2xl">
+        
+        <!-- Header Section -->
+        <div id="header-section" class="text-center mb-8">
+            <img src="https://placehold.co/180x120/333333/EAB308?text=LX&font=serif" alt="Logo de LUXOTIMES" class="mx-auto mb-6 rounded">
+            <h1 class="text-5xl md:text-6xl font-bold text-amber-400 tracking-tight">SORTEO LUXOTIME</h1>
+            <h2 class="text-3xl md:text-4xl font-fancy text-gray-300 mt-2">DÍA DEL NIÑO</h2>
+        </div>
+
+        <!-- Public Facing Section -->
+        <div id="public-section">
+            <div class="text-center mb-6">
+                 <p class="text-lg text-gray-300">Lista de Participantes (<span id="participant-count">0</span>)</p>
+            </div>
+            
+            <div id="participant-list-container" class="participant-list h-64 overflow-y-auto bg-[#111111] border border-gray-700 rounded-lg p-4 text-gray-300 text-center grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-2">
+                <!-- Participants will be loaded here by JS -->
+            </div>
+            
+            <button id="draw-button" class="mt-8 w-full bg-amber-500 text-[#111111] font-bold text-2xl py-4 px-6 rounded-lg hover:bg-amber-400 focus:outline-none focus:ring-4 focus:ring-amber-600 transform hover:scale-105 transition-all">
+                SORTEAR
+            </button>
+        </div>
+
+        <!-- Winner Display Section -->
+        <div id="winner-section" class="hidden text-center py-10">
+            <p id="status-text" class="text-xl text-[#8A8A8A] mb-4">Seleccionando ganadores...</p>
+            <div id="drumroll" class="text-5xl md:text-6xl font-fancy font-bold text-amber-400 min-h-[80px] flex items-center justify-center"></div>
+            <div id="winners-list-container" class="mt-8 opacity-0 transition-opacity duration-1000">
+                 <h2 id="winner-title" class="text-4xl font-fancy text-amber-400 mb-6">¡Felicidades a los ganadores!</h2>
+                <!-- Winners will be populated here -->
+            </div>
+            
+            <button id="reset-button" class="mt-12 border border-[#8A8A8A] text-[#8A8A8A] font-bold py-3 px-8 text-lg rounded-lg hover:bg-[#8A8A8A] hover:text-black transition-all">
+                Nuevo Sorteo
+            </button>
+        </div>
+
+    </div>
+
+    <script>
+        // --- PRE-CONFIGURED DATA ---
+        const allParticipants = [ 'Luisa Liliana Bellati', 'Cecilia Vanesa Zapata', 'Nestor Gabriel Di Micoli', 'Giuliana Facio', 'Natalia', 'Mia', 'Alan', 'Milagros', 'Cristal', 'Noelia', 'Ariana', 'Ana María Portero', 'Jaqueline', 'Julieta', 'Mariano Contreras', 'Valeria Ricardo', 'Mariela Soria', 'Melina', 'Paulina', 'David', 'Berenice', 'Gladys Edith Franco', 'Agustina Díaz', 'Cristian Messina', 'Micaela', 'Silvia Caratozzolo', 'Cristina Castro', 'Franco Alcalde', 'María Santos Fernández', 'Beatriz Rossin', 'Mabel Lucia Lagarde', 'Victor Mazzotta', 'Wilson Alejandro Martinez', 'Fabián Emilio Vallena', 'Irma Bardelli', 'Azul Salgado Rodríguez', 'Micaela Orman', 'Alegra Nocetti', 'Trinidad Bonanico', 'Nicole Romina Pérez Ferrero', "Javier Ignacio D'sposito", 'Oscar Benítez', 'Sebastián Pouza', 'Patricia Cano', 'Melody Zapata', 'Joaquín Coria', 'Andrés Colo', 'Ludmila Suárez', 'Lorena Dalessio', 'Monica Suarez', 'Silvana Estefania Ortega', 'Ruth Bobadilla', 'Fabián', 'Andrea Taborda', 'Beatriz Raquel Montero', 'Milagros Aylen García', 'Leonel Ríos', 'Natalia Turcewicz', 'Cecilia Julio', 'Alexander Coverzola', 'Claudia López', 'Maria Isabel', 'Jazmín de Jesús', 'Morales Susana', 'Carolina Sanchez', 'Sebastián Jaques', 'Martin Sanchez', 'Elsa Correa', 'Facundo Arena', 'Juan Facini', 'Elsa Correa', 'Gabriel Trinidad', 'Ludmila Galdin', 'Milagros Herrera', 'Rocio Melgralejo', 'Uriel Delgado', 'Micaela Roldán', 'Guillermo Romero', 'Sceyla', 'María Abalos', 'Daniela López', 'Ayelen Ferreira', 'Alejandro Pat', 'Yanina Monasterio', 'Ivan Romero', 'María Laffitte', 'Lucia Victoria Martinez Alfaro', 'Erica Dolman', 'Brisa Galaus', 'Roxana Volinsky', 'Claudia Figueroa', 'Ximena Martell', 'Edgardo Filoso', 'India Molina', 'María F. Rubino', 'Alejandra Ávalos', 'Karen Pintos', 'Alma Arias', 'Verónica Martinez', 'Naltir Barreto', 'Fabiana Ritacco', 'Profeta Mamana', 'Cecilia Melia', 'Lucia Morello', 'Leandro Woicik', 'Jeremías Reines', 'Sol Pulido', 'Keila Chamorro', 'Xoana Zarate', 'Laura Pereyra', 'Roberto Martin Valdivia', 'Damián Giovinazzo', 'Novas Nahir', 'Florencia Pacheco', 'Tomas Reynal', 'Jonatan Agüero', 'Rocio del Carmen', 'Ricardo Alvarenga', 'Olga Moyano', 'Ana Silvero', 'Juliana Gil', 'Claudia Jaime', 'Cristian Castro', 'Natalia Bordón', 'Antonio Pared', 'Ailin Mulle', 'Felipe Valentín Iribarren', 'Benjamin Iribarren', 'Ariadna Pusderkis', 'Josefina Pusderkis', 'Lucas Antelo', 'Gisela Aguilar', 'Márcia Maidana', 'Navarro José Ricardo', 'Gonzalo Cantero', 'Alejandra Sarmiento', 'Luis Contreras', 'Tomas Chaparro', 'Mónica Bianchi', 'Nahuel Toledo', 'Isabel Fernández', 'Marcos Benítez', 'Yesica Britez', 'Marta Pozzi', 'Dionisio Nagy', 'Maite Delfico', 'Lorena Peña', 'Federico Zinni', 'Azul Silva' ];
+        const predeterminedWinners = [ 'Martin Sanchez', 'Alejandra Ávalos', 'Navarro José Ricardo', 'Marta Pozzi', 'Dionisio Nagy', 'Maite Delfico', 'Florencia Dominguez', 'Lorena Peña', 'Federico Zinni', 'Azul Silva' ];
+        // --- END OF PRE-CONFIGURED DATA ---
+
+        const drawButton = document.getElementById('draw-button');
+        const resetButton = document.getElementById('reset-button');
+        const publicSection = document.getElementById('public-section');
+        const winnerSection = document.getElementById('winner-section');
+        const participantCountEl = document.getElementById('participant-count');
+        const participantListContainer = document.getElementById('participant-list-container');
+        const drumrollEl = document.getElementById('drumroll');
+        const winnersListContainer = document.getElementById('winners-list-container');
+        const statusText = document.getElementById('status-text');
+        let drumrollInterval;
+
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        function createConfetti() {
+            for (let i = 0; i < 200; i++) {
+                const confetti = document.createElement('div');
+                confetti.classList.add('confetti');
+                confetti.style.left = Math.random() * 100 + 'vw';
+                confetti.style.animationDelay = Math.random() * 4 + 's';
+                const colors = ['#FFFFFF', '#8A8A8A', '#c0c0c0', '#F5F5F5'];
+                confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                document.body.appendChild(confetti);
+                confetti.addEventListener('animationend', () => confetti.remove());
+            }
+        }
+
+        function displayParticipants() {
+            participantCountEl.textContent = allParticipants.length;
+            participantListContainer.innerHTML = '';
+            allParticipants.forEach(name => {
+                const p = document.createElement('p');
+                p.textContent = name;
+                participantListContainer.appendChild(p);
+            });
+        }
+
+        function runWinnerAnimation() {
+            // Phase 1: Rapid Cycle (0-15 seconds)
+            drumrollInterval = setInterval(() => {
+                const randomParticipant = allParticipants[Math.floor(Math.random() * allParticipants.length)];
+                drumrollEl.textContent = randomParticipant;
+            }, 75);
+
+            // Phase 2: Final Countdown (15-25 seconds)
+            setTimeout(() => {
+                clearInterval(drumrollInterval);
+                statusText.textContent = "¡Cuenta Regresiva Final!";
+                let count = 10;
+                drumrollEl.textContent = count;
+                drumrollEl.classList.add('countdown-number');
+                
+                let countdownInterval = setInterval(() => {
+                    count--;
+                    if (count > 0) {
+                        drumrollEl.textContent = count;
+                    } else {
+                        clearInterval(countdownInterval);
+                    }
+                }, 1000);
+            }, 15000); // Start countdown after 15 seconds
+
+            // Phase 3: Reveal Winners (at 25 seconds)
+            setTimeout(() => {
+                drumrollEl.style.transition = 'opacity 0.5s';
+                drumrollEl.classList.add('opacity-0');
+                
+                const winners = shuffleArray([...predeterminedWinners]);
+                
+                winnersListContainer.innerHTML = '<h2 id="winner-title" class="reveal-title text-4xl font-fancy text-amber-400 mb-6">¡Felicidades a los ganadores!</h2>';
+                
+                const winnersList = document.createElement('ol');
+                winnersList.className = 'grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 text-2xl font-fancy text-amber-400 list-decimal list-inside';
+                
+                winners.forEach((winner, index) => {
+                    const li = document.createElement('li');
+                    li.textContent = winner;
+                    li.className = 'winner-item'; // This class now triggers the highlight animation
+                    li.style.animationDelay = `${index * 0.15 + 0.5}s`;
+                    winnersList.appendChild(li);
+                });
+
+                winnersListContainer.appendChild(winnersList);
+                winnersListContainer.classList.remove('opacity-0');
+                
+                createConfetti();
+            }, 25000); // Reveal after 25 seconds
+        }
+
+        drawButton.addEventListener('click', () => {
+            publicSection.classList.add('hidden');
+            winnerSection.classList.remove('hidden');
+            runWinnerAnimation();
+        });
+
+        resetButton.addEventListener('click', () => {
+            winnerSection.classList.add('hidden');
+            publicSection.classList.remove('hidden');
+            drumrollEl.textContent = '';
+            drumrollEl.classList.remove('opacity-0', 'countdown-number');
+            statusText.textContent = "Seleccionando ganadores...";
+        });
+
+        document.addEventListener('DOMContentLoaded', displayParticipants);
+    </script>
+</body>
+</html>
